@@ -1,0 +1,27 @@
+
+FROM cernml4reco/deepjetcore3:latest
+
+RUN pip3 install --upgrade pip
+RUN pip3 install ipython>=6.4.0                \
+                jupyter                        \
+                jupyter_contrib_nbextensions   \
+                seaborn==0.9.0                 \
+                matplotlib==3.2.2              \
+                pandas==0.25.0                 \
+                torch==1.9.0                   \
+                fastprogress==0.1.21           \
+                scipy==1.5.4                   \
+                numpy==1.21                    \
+                h5py==2.7.1                    \
+                scikit-learn==0.22.0           \
+                statsmodels==0.9.0             \
+                sympy==1.1.1                   \
+                pdpbox~=0.2.0                  \
+                rfpimp==1.3.5                  \
+                prettytable==0.7.2             \
+                sparse==0.11.2                 \
+                fastcore==1.3.5                \
+                lumin==0.8.0                   \
+                typer==0.3.0                   \
+                uproot==3.11            
+

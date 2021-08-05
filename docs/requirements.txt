@@ -1,0 +1,9 @@
+sphinx==2.2.0
+sphinx_rtd_theme
+sphinx_autodoc_typehints==1.7.0
+sphinx_autodoc_annotation==1.0.post1
+lumin==0.7.2
+typer
+uproot
+m2r
+sparse
