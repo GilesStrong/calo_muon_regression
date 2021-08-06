@@ -21,3 +21,9 @@ This will create a new Conda environment called `muon-regression`, which can be 
 ```
 conda activate muon-regression
 ```
+
+Alternatively:
+```
+pip install -r requirements.txt
+```
+may be used to install the dependencies.
