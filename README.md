@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/392616618.svg)](https://zenodo.org/badge/latestdoi/392616618)
+
 # High-Energy Muon Calorimeter Regression Study
 
 Public version of code used in "Calorimetric Measurement of Multi-TeV Muons via Deep Regression" by Jan Kieseler, Giles C. Strong, Filippo Chiandotto, Tommaso Dorigo, & Lukas Layer, (2021), [arXiv:2107.02119 [physics.ins-det]](https://arxiv.org/abs/2107.02119)
