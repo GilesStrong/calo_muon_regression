@@ -59,8 +59,8 @@ def get_res(df:pd.DataFrame, bins:np.ndarray=np.linspace(100,8000,41), pred_name
                     corr_res_p84=pd.NamedAgg(column='error', aggfunc=_percentile(84.135)),
                     corr_pred_p16=pd.NamedAgg(column=pred_name, aggfunc=_percentile(15.865)),
                     corr_pred_p84=pd.NamedAgg(column=pred_name, aggfunc=_percentile(84.135)),
-                    corr_pred_med=pd.NamedAgg(column=pred_name, aggfunc='median'),
-                    true_med=pd.NamedAgg(column='gen_target', aggfunc='median'))
+                    corr_pred_median=pd.NamedAgg(column=pred_name, aggfunc='median'),
+                    true_median=pd.NamedAgg(column='gen_target', aggfunc='median'))
     if extra:
         extra_agg_func = dict(corr_res_var=pd.NamedAgg(column='error', aggfunc='var'),
                               corr_res_std=pd.NamedAgg(column='error', aggfunc='std'),
@@ -75,8 +75,8 @@ def get_res(df:pd.DataFrame, bins:np.ndarray=np.linspace(100,8000,41), pred_name
     agg = grps.agg(**agg_func).reset_index()
     agg['corr_res_c68'] = (agg.corr_res_p84-agg.corr_res_p16)/2
     agg['corr_pred_c68'] = (agg.corr_pred_p84-agg.corr_pred_p16)/2
-    agg['corr_rmse_med'] = np.sqrt((agg.corr_pred_c68**2)+((agg.corr_pred_med-agg.true_med)**2))
-    agg['corr_frac_rmse_med'] = agg['corr_rmse_med'].values/agg.true_med.values
+    agg['corr_rmse_median'] = np.sqrt((agg.corr_pred_c68**2)+((agg.corr_pred_median-agg.true_median)**2))
+    agg['corr_frac_rmse_median'] = agg['corr_rmse_median'].values/agg.true_median.values
     if extra:
         agg['corr_rmse_mean'] = np.sqrt((agg.corr_pred_std**2)+((agg.corr_pred_mean-agg.true_mean)**2))
         agg['corr_frac_rmse_mean'] = agg['corr_rmse_mean'].values/agg.true_mean.values

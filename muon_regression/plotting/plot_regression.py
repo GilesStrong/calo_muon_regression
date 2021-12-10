@@ -15,7 +15,7 @@ from ..result_proc.binning import get_res, get_binned_errors
 
 __all__ = ['load_df', 'plot_reg', 'plot_res_reg', 'plot_res_trueE', 'plot_loss', 'plot_sqrt_var', 'plot_binned_error', 'plot_binned_errors',
            'plot_binned_error_stds', 'plot_binned_corr_res', 'plot_true_v_pred', 'plot_pred_v_true', 'plot_confidence', 'plot_slices', 'plot_combined_res',
-           'plot_binned_rmse', 'produce_plots', 'plot_combined_rmse', 'plot_test_pred_v_true']
+           'plot_binned_rmse', 'produce_plots', 'plot_combined_rmse', 'plot_test_pred_v_true', 'plot_frac_rmse']
 
 
 def load_df(path):
@@ -228,7 +228,7 @@ def plot_binned_error_stds(agg_dfs:Dict[int,pd.DataFrame], savename:Optional[str
         plt.show()
 
 
-def plot_binned_corr_res(agg_dfs:Union[pd.DataFrame,Dict[int,pd.DataFrame]], width:str='std',
+def plot_binned_corr_res(agg_dfs:Union[pd.DataFrame,Dict[int,pd.DataFrame]], width:str='c68',
                          savename:Optional[str]=None, settings:PlotSettings=PlotSettings()) -> Tuple[float,float]:
     r'''
     Plots the standard deviation or variance of corrected relative errors for multiple runs
@@ -300,7 +300,7 @@ def plot_true_v_pred(df:pd.DataFrame, corr_pred:bool, fit_func:Optional[AbsFunc]
         plt.show()
 
 
-def plot_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, centre:str='med', width:str='c68',
+def plot_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame,
                      fit_func:Optional[AbsFunc]=None, savename:Optional[str]=None,
                      settings:PlotSettings=PlotSettings()) -> None:
     r'''
@@ -309,18 +309,10 @@ def plot_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, centre:str='med', wid
     Arguments:
         df: DataFrame with true and predicted energy per muon
         agg_df: Aggregated DataFrame with precomputed percentiles of error in bins of true energy
-        centre: 'med' or 'mean' for central values
-        width: 'c68' of 'std' for uncertainty
-        fit_func: Optional fitted :class:`~muon_regression.plotting.fitting.AbsFunc`
+        fit: Power-law fit parameters
         savename: Optional name of file to which to save the plot of feature importances
         settings: `PlotSettings` class to control figure appearance
     '''
-    
-    def red_chi2(o,e,err,n_fit):
-        chi = (o-e)/err
-        chi2 = (chi**2).sum()
-        dof = len(o)-n_fit
-        return chi2/dof
 
     with sns.axes_style(**settings.style), sns.color_palette(settings.cat_palette):
         plt.figure(figsize=(settings.w_mid, settings.h_mid))        
@@ -329,16 +321,10 @@ def plot_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, centre:str='med', wid
         if fit_func is not None:
             x = np.linspace(100,x_max,200)
             y = fit_func.func(x)
-            red_chi2 = red_chi2(agg_df.pred_med, fit_func.func(agg_df.gen_target), agg_df.pred_c68, fit_func.n_params)
-            yerr = [agg_df['pred_med']-agg_df['pred_p16'],agg_df['pred_p84']-agg_df['pred_med']] if width == 'c68' else agg_df.pred_std
-            plt.errorbar(agg_df['gen_target'], agg_df[f'pred_{centre}'], yerr=yerr)
-            plt.plot(x,y, label=fit_func.string()+r', $\frac{\chi^2}{N_\mathrm{dof}}=' + f'{red_chi2:.2f}$')
+            plt.plot(x,y, label=fit_func.string())
             plt.ylim((100,x_max+1000))
         else:
-            red_chi2 = red_chi2(agg_df.corr_pred_med, agg_df.gen_target, agg_df.corr_pred_c68, 0)
-            yerr = [agg_df['corr_pred_med']-agg_df['corr_pred_p16'],agg_df['corr_pred_p84']-agg_df['corr_pred_med']] if width == 'c68' else agg_df.pred_std
-            plt.errorbar(agg_df['gen_target'], agg_df[f'corr_pred_{centre}'], yerr=yerr)
-            plt.plot([100,x_max],[100,x_max], linestyle='--', color='black', label=r'$\frac{\chi^2}{N_\mathrm{dof}}=' + f'{red_chi2:.2f}$')
+            plt.plot([100,x_max],[100,x_max], linestyle='--', color='black')
 
         ylbl = r'$E_{\mathrm{Pred}}\ [GeV]$'
         if fit_func is None: ylbl = 'Corrected ' + ylbl
@@ -346,13 +332,13 @@ def plot_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, centre:str='med', wid
         plt.xlabel(r'$E_{\mathrm{True}}\ [GeV]$', fontsize=settings.lbl_sz, color=settings.lbl_col)
         plt.xticks(fontsize=settings.tk_sz, color=settings.tk_col)
         plt.yticks(fontsize=settings.tk_sz, color=settings.tk_col)
-        plt.legend(fontsize=settings.leg_sz)
+        if fit_func is not None: plt.legend(fontsize=settings.leg_sz)
         plt.title(settings.title, fontsize=settings.title_sz, color=settings.title_col, loc=settings.title_loc)
         if savename is not None: plt.savefig(settings.savepath/f'{savename}{settings.format}', bbox_inches='tight')
         plt.show()
 
         
-def plot_test_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, savename:Optional[str]=None,
+def plot_test_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, showfliers:bool=False, savename:Optional[str]=None,
                           settings:PlotSettings=PlotSettings()) -> None:
     r'''
     Plots the distribution of bias-corrected predicted energy as a function of true energy for test data
@@ -360,41 +346,33 @@ def plot_test_pred_v_true(df:pd.DataFrame, agg_df:pd.DataFrame, savename:Optiona
     Arguments:
         df: DataFrame with true and predicted energy per muon
         agg_df: Aggregated DataFrame with precomputed percentiles of error in bins of true energy
+        showfliers: Whether to plot outlier datapoints
         savename: Optional name of file to which to save the plot of feature importances
         settings: `PlotSettings` class to control figure appearance
     '''
-    
-    def red_chi2(o,e,err,n_fit):
-        chi = (o-e)/err
-        chi2 = (chi**2).sum()
-        dof = len(o)-n_fit
-        return chi2/dof
 
     with sns.axes_style(**settings.style), sns.color_palette(settings.cat_palette):
-        plt.figure(figsize=(settings.w_mid, settings.h_mid))
+        plt.figure(figsize=(settings.w_mid, settings.h_mid))        
         
-        chi2 = red_chi2(agg_df.corr_pred_med, agg_df.gen_target, agg_df.corr_pred_c68, 0)
-        plt.plot([0,df.gen_target.nunique()-1],[0,df.gen_target.max()], linestyle='--', color='black', label=r'$\frac{\chi^2}{N_\mathrm{dof}}=' + f'{chi2:.2f}$')
-        sns.boxenplot(x='gen_target', y='pred_corr', data=df, color='orange')
+        plt.plot([0,df.gen_target.nunique()-1],[0,df.gen_target.max()], linestyle='--', color='black')
+        sns.boxenplot(x='gen_target', y='pred_corr', data=df, color='orange', showfliers=showfliers)
 
         ylbl = r'Corrected $E_{\mathrm{Pred}}\ [GeV]$'
         plt.ylabel(ylbl, fontsize=settings.lbl_sz, color=settings.lbl_col)
         plt.xlabel(r'$E_{\mathrm{True}}\ [GeV]$', fontsize=settings.lbl_sz, color=settings.lbl_col)
         plt.xticks(fontsize=settings.tk_sz, color=settings.tk_col)
         plt.yticks(fontsize=settings.tk_sz, color=settings.tk_col)
-        plt.legend(fontsize=settings.leg_sz)
         plt.title(settings.title, fontsize=settings.title_sz, color=settings.title_col, loc=settings.title_loc)
         if savename is not None: plt.savefig(settings.savepath/f'{savename}{settings.format}', bbox_inches='tight')
         plt.show()
 
         
-def plot_confidence(agg_df:pd.DataFrame, width:str='c68', savename:Optional[str]=None, settings:PlotSettings=PlotSettings()) -> None:
+def plot_confidence(agg_df:pd.DataFrame, savename:Optional[str]=None, settings:PlotSettings=PlotSettings()) -> None:
     r'''
     Plots the standard deviation or variance of corrected predictions for multiple runs
 
     Arguments:
         agg_df: Dictionary of aggregated DataFrame with precomputed percentiles of error in bins of true energy
-        width: Width to plot, std, var, c68
         savename: Optional name of file to which to save the plot of feature importances
         settings: `PlotSettings` class to control figure appearance
     ''' 
@@ -402,25 +380,19 @@ def plot_confidence(agg_df:pd.DataFrame, width:str='c68', savename:Optional[str]
     with sns.axes_style(**settings.style), sns.color_palette(settings.cat_palette) as palette:
         plt.figure(figsize=(settings.w_mid, settings.h_mid))
         plt.plot([100,8000],[100,8000], linestyle='--', color='black')
-        if width == 'c68':
-            plt.fill_between(agg_df.gen_target, agg_df.corr_pred_p84, agg_df.corr_pred_p16, color=palette[0], alpha=0.5)
-            us,ms,ds = [],[],[]
-            for e in [1000,3000]:
-                try:
-                    us.append(interp1d(agg_df.gen_target, agg_df.corr_pred_p84)(e))
-                    ms.append(interp1d(agg_df.gen_target, agg_df.corr_pred_med)(e))
-                    ds.append(interp1d(agg_df.gen_target, agg_df.corr_pred_p16)(e))
-                except ValueError:
-                    us.append(np.NaN)
-                    ms.append(np.NaN)
-                    ds.append(np.NaN)
-            plt.plot(agg_df.gen_target, agg_df.corr_pred_med, color=palette[0],
-                     label=f'+{us[0]-ms[0]:.0f}/-{ms[0]-ds[0]:.0f}@1TeV +{us[1]-ms[1]:.0f}/-{ms[1]-ds[1]:.0f}@3TeV')
-        else:
-            plt.step(agg_df.gen_target, agg_df.corr_pred_mean, where='mid', color=palette[0])
-            ws = interp1d(agg_df.gen_target, agg_df[f'corr_pred_{width}'])([1000,3000])
-            plt.errorbar(agg_df.gen_target, agg_df.corr_pred_mean, yerr=agg_df[f'corr_pred_{width}'],
-                         color=palette[0], fmt='o', label=f'±{ws[0]:.0f}@1TeV ±{ws[1]:.0f}@3TeV')
+        plt.fill_between(agg_df.gen_target, agg_df.corr_pred_p84, agg_df.corr_pred_p16, color=palette[0], alpha=0.5)
+        us,ms,ds = [],[],[]
+        for e in [1000,3000]:
+            try:
+                us.append(interp1d(agg_df.gen_target, agg_df.corr_pred_p84)(e))
+                ms.append(interp1d(agg_df.gen_target, agg_df.corr_pred_median)(e))
+                ds.append(interp1d(agg_df.gen_target, agg_df.corr_pred_p16)(e))
+            except ValueError:
+                us.append(np.NaN)
+                ms.append(np.NaN)
+                ds.append(np.NaN)
+        plt.plot(agg_df.gen_target, agg_df.corr_pred_median, color=palette[0],
+                 label=f'+{us[0]-ms[0]:.0f}/-{ms[0]-ds[0]:.0f}@1TeV +{us[1]-ms[1]:.0f}/-{ms[1]-ds[1]:.0f}@3TeV')
 
         plt.xlabel(r'$E_{\mathrm{True}}\ [GeV]$',  fontsize=settings.lbl_sz, color=settings.lbl_col)
         plt.ylabel(r'Corrected $E_{\mathrm{Pred.}}\ [GeV]$', fontsize=settings.lbl_sz, color=settings.lbl_col)
@@ -439,7 +411,6 @@ def plot_slices(df:pd.DataFrame, corr_pred:bool, n_bins:int=80, savename:Optiona
     Arguments:
         df: DataFrame with true and predicted energy per muon
         corr_pred: Whether to use the corrected predictions
-        n_bins: number of bins of true energy to plot
         savename: Optional name of file to which to save the plot of feature importances
         settings: `PlotSettings` class to control figure appearance
     '''
@@ -469,7 +440,6 @@ def plot_test_slices(df:pd.DataFrame, corr_pred:bool, bins:np.ndarray, savename:
     Arguments:
         df: DataFrame with true and predicted energy per muon
         corr_pred: Whether to use the corrected predictions
-        bins: list of bin-edges for true energy
         savename: Optional name of file to which to save the plot of feature importances
         settings: `PlotSettings` class to control figure appearance
     '''
@@ -546,14 +516,14 @@ def plot_combined_rmse(agg_df:pd.DataFrame, k:float=2e-4, savename:Optional[str]
     ''' 
     
     agg_df['tracker_rmse'] = (agg_df.gen_target)*k
-    agg_df['combined_rmse'] = np.sqrt(1/((1/(agg_df.corr_frac_rmse_med**2))+(1/(agg_df.tracker_rmse**2))))
+    agg_df['combined_rmse'] = np.sqrt(1/((1/(agg_df.corr_frac_rmse_median**2))+(1/(agg_df.tracker_rmse**2))))
     
     max_res = agg_df['combined_rmse'].max()
     improv = (agg_df['tracker_rmse']-agg_df['combined_rmse']).mean()
     
     with sns.axes_style(**settings.style), sns.color_palette(settings.cat_palette):
         plt.figure(figsize=(settings.w_mid, settings.h_mid))
-        plt.plot(agg_df.gen_target, 100*agg_df['corr_frac_rmse_med'], label='Calorimeter')
+        plt.plot(agg_df.gen_target, 100*agg_df['corr_frac_rmse_median'], label='Calorimeter')
         plt.plot(agg_df.gen_target, 100*agg_df['tracker_rmse'], label='Tracker')
         plt.plot(agg_df.gen_target, 100*agg_df['combined_rmse'], label=f'Combined frac. RMSE,\nmax value={max_res*100:.1f}%,\nmean improvement={improv*100:.1f}%')
         
@@ -583,7 +553,7 @@ def plot_binned_rmse(agg_dfs:Union[pd.DataFrame,Dict[int,pd.DataFrame]], median:
     if not isinstance(agg_dfs, dict): agg_dfs = {0:agg_dfs}
     with sns.axes_style(**settings.style), sns.color_palette(settings.cat_palette):
         plt.figure(figsize=(settings.w_mid, settings.h_mid))
-        for i in agg_dfs: plt.plot(agg_dfs[i].gen_target, agg_dfs[i][f'corr_rmse_{"med" if median else "mean"}'], label=f'{i}')
+        for i in agg_dfs: plt.plot(agg_dfs[i].gen_target, agg_dfs[i][f'corr_rmse_{"median" if median else "mean"}'], label=f'{i}')
         plt.xlabel(r'$E_{\mathrm{True}}\ [GeV]$', fontsize=settings.lbl_sz, color=settings.lbl_col)
         plt.ylabel(r'RMSE: $\sqrt{\mathrm{pred.\ width}^2+\mathrm{bias}^2}$', fontsize=settings.lbl_sz, color=settings.lbl_col)
         plt.xticks(fontsize=settings.tk_sz, color=settings.tk_col)
@@ -594,20 +564,31 @@ def plot_binned_rmse(agg_dfs:Union[pd.DataFrame,Dict[int,pd.DataFrame]], median:
         plt.show()
 
 
-def produce_plots(df:pd.DataFrame, jrn:ExpJournal, settings:PlotSettings, fit_func:AbsFunc, restrict_range:bool) -> pd.DataFrame:
+def plot_frac_rmse(agg_dfs:Union[pd.DataFrame,Dict[int,pd.DataFrame]], savename:Optional[str]=None, settings:PlotSettings=PlotSettings()) -> None:
     r'''
-    Produce all summary plots
+    Plots the standard deviation or variance of corrected relative errors for multiple runs
 
     Arguments:
-        df: DataFrame of predictions and targets
-        jrn :class:`~muon_regression.experiment.ExpJournal` for recording results
-        fit_func: :class:`~muon_regression.plotting.fitting.AbsFunc` function for debiasing predictions (will be fitted automatically)
-        restrict_range: if True, will limit datat to 100GeV-4TeV range
-    
-    Returns:
-        DataFrame of resolutions etc. in bins of true energy
-    '''
-    
+        agg_dfs: Dictionary of aggregated DataFrame with precomputed percentiles of error in bins of true energy
+        savename: Optional name of file to which to save the plot of feature importances
+        settings: `PlotSettings` class to control figure appearance
+    ''' 
+
+    if not isinstance(agg_dfs, dict): agg_dfs = {0:agg_dfs}
+    with sns.axes_style(**settings.style), sns.color_palette(settings.cat_palette):
+        plt.figure(figsize=(settings.w_mid, settings.h_mid))
+        for i in agg_dfs: plt.plot(agg_dfs[i].gen_target, 100*agg_dfs[i]['corr_frac_rmse_median'], label=f'{i}')
+        plt.xlabel(r'$E_{\mathrm{True}}\ [GeV]$', fontsize=settings.lbl_sz, color=settings.lbl_col)
+        plt.ylabel('Percentage RMSE [%]', fontsize=settings.lbl_sz, color=settings.lbl_col)
+        plt.xticks(fontsize=settings.tk_sz, color=settings.tk_col)
+        plt.yticks(fontsize=settings.tk_sz, color=settings.tk_col)
+        if len(agg_dfs) > 1: plt.legend(loc=settings.leg_loc, fontsize=settings.leg_sz)
+        plt.title(settings.title, fontsize=settings.title_sz, color=settings.title_col, loc=settings.title_loc)
+        if savename is not None: plt.savefig(settings.savepath/f'{savename}{settings.format}', bbox_inches='tight')
+        plt.show()
+        
+
+def produce_plots(df:pd.DataFrame, jrn:ExpJournal, settings:PlotSettings, fit_func:AbsFunc, restrict_range:bool) -> pd.DataFrame:
     cache_path = settings.savepath
     if restrict_range:
         df = df[df.gen_target <= 4000]
@@ -634,17 +615,17 @@ def produce_plots(df:pd.DataFrame, jrn:ExpJournal, settings:PlotSettings, fit_fu
         plot_res_trueE(df, save_path=savepath)
 
         # Fitted bias correction
-        centre,width = 'med','c68'
-        agg = fit_pred(df, centre=centre, width=width, fit_func=fit_func, bins=agg_bins)
-        plot_pred_v_true(df, agg_df=agg, width=width, fit_func=fit_func, savename=f'fitted_pred_{width}', settings=settings)
-        plot_true_v_pred(df, corr_pred=False, fit_func=fit_func, savename=f'fit_extrap_{width}', settings=settings)
+        centre = 'mean'
+        agg = fit_pred(df, centre=centre, fit_func=fit_func, bins=agg_bins)
+        plot_pred_v_true(df, agg_df=agg, fit_func=fit_func, savename='fitted_pred', settings=settings)
+        plot_true_v_pred(df, corr_pred=False, fit_func=fit_func, savename='fit_extrap', settings=settings)
         df['pred_corr'] = fit_func.inv_func(df.pred)
         res = get_res(df, bins=res_bins)
-        plot_pred_v_true(df, agg_df=res, savename=f'corrected_prediction_{width}', settings=settings)
-        resolutions = plot_binned_corr_res(res, width='c68', savename='resolution_c68', settings=settings)
+        plot_pred_v_true(df, agg_df=res, savename='corrected_prediction', settings=settings)
+        resolutions = plot_binned_corr_res(res, savename='resolution_c68', settings=settings)
         jrn[f'{result_prfx}res_1Tev'] = np.nan_to_num(resolutions[0])
         jrn[f'{result_prfx}res_3Tev'] = np.nan_to_num(resolutions[1])
-        plot_confidence(res, width='c68', savename='confidence_c68', settings=settings)
+        plot_confidence(res, savename='confidence_c68', settings=settings)
         jrn[f'{result_prfx}max_combined_res'] = plot_combined_res(res, savename='combined_resolution', settings=settings)
         jrn[f'{result_prfx}max_combined_rmse'],jrn[f'{result_prfx}combined_rmse_improv'] = plot_combined_rmse(res, savename='combined_rmse', settings=settings)
         plot_binned_rmse(res, savename='mse', settings=settings)
@@ -654,3 +635,4 @@ def produce_plots(df:pd.DataFrame, jrn:ExpJournal, settings:PlotSettings, fit_fu
     finally:
         settings.savepath = cache_path
     return res
+

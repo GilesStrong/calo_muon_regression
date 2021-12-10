@@ -14,7 +14,7 @@ import timeit  # noqa F401
 from fastprogress import progress_bar, master_bar  # noqa F401
 
 import torch.nn as nn  # noqa F401
-from torch.tensor import Tensor  # noqa F401
+from torch import Tensor  # noqa F401
 import torch  # noqa F401
 
 from lumin.nn.training.train import *  # noqa F403 F401

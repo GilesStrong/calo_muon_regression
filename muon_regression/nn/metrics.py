@@ -47,10 +47,10 @@ class ImprovRMSE(EvalMetric):
     def evaluate(self) -> float:
         def compute_res(df:pd.DataFrame) -> Tuple[float,List[float]]:
             fit = self.partial_fit_func()
-            fit_pred(df, fit_func=fit, centre='med', width='c68', bins=self.fit_bins)
+            fit_pred(df, fit_func=fit, bins=self.fit_bins)
             df['pred_corr'] = fit.inv_func(df.pred)
             res = get_res(df, bins=self.res_bins, extra=False)
-            rmse = np.sqrt(1/((1/(res.corr_frac_rmse_med**2))+(1/(self.tracker_res**2))))
+            rmse = np.sqrt(1/((1/(res.corr_frac_rmse_median**2))+(1/(self.tracker_res**2))))
             improv = (self.tracker_res-rmse).mean()
             return improv, fit.params
         
@@ -130,10 +130,10 @@ class MaxRMSE(EvalMetric):
     def evaluate(self) -> float:
         def compute_res(df:pd.DataFrame) -> Tuple[float,List[float]]:
             fit = self.partial_fit_func()
-            fit_pred(df, fit_func=fit, centre='med', width='c68', bins=self.fit_bins)
+            fit_pred(df, fit_func=fit, bins=self.fit_bins)
             df['pred_corr'] = fit.inv_func(df.pred)
             res = get_res(df, bins=self.res_bins, extra=False)
-            rmse = np.sqrt(1/((1/(res.corr_frac_rmse_med**2))+(1/(self.tracker_res**2))))
+            rmse = np.sqrt(1/((1/(res.corr_frac_rmse_median**2))+(1/(self.tracker_res**2))))
             return rmse.max(), fit.params
         
         def mp_wrapper(args, out_q):

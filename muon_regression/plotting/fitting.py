@@ -1,8 +1,11 @@
 from scipy.optimize import curve_fit
 import numpy as np
 import pandas as pd
-from typing import Callable, List, Optional
+from typing import List, Optional
 from abc import ABC, abstractmethod
+
+from lumin.utils.statistics import bootstrap_stats
+from lumin.utils.multiprocessing import mp_run
 
 from ..fqs import single_quartic
 
@@ -62,7 +65,7 @@ class LinFunc(AbsFunc):
 
     def string(self) -> str:
         a,b = self.params
-        return fr'${a:.2f}\times x + {b:.2f}$'
+        return fr'${a:.2f}' + r'E_{\mathrm{True}}' + fr'+ {b:.2f}$'
 
 
 class QuadFunc(AbsFunc):
@@ -82,7 +85,7 @@ class QuadFunc(AbsFunc):
 
     def string(self) -> str:
         a,b,c = self.params
-        return fr'$({a:.2E})\times x^2 + {b:.2f}\times x + {c:.2f}$'
+        return fr'$({a:.2E})' + r'E_{\mathrm{True}}' + fr'^2 + {b:.2f}' + r'E_{\mathrm{True}}' + fr' + {c:.2f}$'
 
 
 class LogFunc(AbsFunc):
@@ -102,7 +105,7 @@ class LogFunc(AbsFunc):
 
     def string(self) -> str:
         a,b,c = self.params
-        return fr'${a:.2f}\times\ln (x + {b:.2f}) + {c:.2f}$'
+        return fr'${a:.2f}\times\ln (' + r'E_{\mathrm{True}}' + fr' + {b:.2f}) + {c:.2f}$'
 
 
 class PowerFunc(AbsFunc):
@@ -122,7 +125,7 @@ class PowerFunc(AbsFunc):
 
     def string(self) -> str:
         a,b,c = self.params
-        return fr'${a:.2f}\times x^'+'{' + f'{b:.2f}'+'}' + fr'{c:.2f}$'
+        return fr'${a:.2f}' + r'E_{\mathrm{True}}' + '^{' + f'{b:.2f}'+'}' + fr'{c:.2f}$'
 
 
 class QuartFunc(AbsFunc):
@@ -150,35 +153,22 @@ class QuartFunc(AbsFunc):
 
     def string(self) -> str:
         a,b,c,d,e = self.params
-        return fr'$({a:.2E})\times x^4 + ({b:.2E})\times x^3 + ({c:.2E})\times x^2 + {d:.2f}\times x + {e:.2f}$'
+        return fr'$({a:.2E})' + r'E_{\mathrm{True}}' + fr'^4 + ({b:.2E})' + r'E_{\mathrm{True}}' + fr'^3 + ({c:.2E})' + r'E_{\mathrm{True}}' + fr'2 + {d:.2f}' + r'E_{\mathrm{True}}' + fr' + {e:.2f}$'
 
 
-def fit_pred(df:pd.DataFrame, fit_func:AbsFunc, centre:str='med', width:str='c68', bins:np.ndarray=np.linspace(100,8000,80)) -> pd.DataFrame:
-    r'''
-    Fits chosen function to centre of predictions in bins of true energy, considering width as uncertinties
-
-    Arguments:
-        df: DataFrame of predictions and targets
-        fit_func: :class:`~muon_regression.plotting.fitting.AbsFunc` to fit targets to predictions
-        centre: 'med' or 'mean' for central values
-        width: 'c68' of 'std' for uncertainty
-        bins: bin edges for true energy
-    '''
+def fit_pred(df:pd.DataFrame, fit_func:AbsFunc, centre:str='mean', bins:np.ndarray=np.linspace(100,8000,80), n_bs:int=10000) -> pd.DataFrame:
+    args = [{'data':df.loc[(df.gen_target >= bins[i]) & (df.gen_target < bins[i+1]), 'pred'].values, 'name':f'bin_{i}', centre:True, 'n':n_bs} for i in range(len(bins[:-1]))]
+    bs_stats = mp_run(args, bootstrap_stats)
     
-    def _percentile(n:float) -> Callable[[np.ndarray], float]:
-        def __percentile(x): return np.nanpercentile(x, n)
-        __percentile.__name__ = f'{n}'
-        return __percentile
-
-    grps = df.groupby(pd.cut(df.gen_target, bins))
-    agg = grps.agg(pred_med=pd.NamedAgg(column='pred',  aggfunc='median'),
-                   pred_mean=pd.NamedAgg(column='pred', aggfunc='mean'),
-                   pred_std=pd.NamedAgg(column='pred',  aggfunc='std'),
-                   pred_p16=pd.NamedAgg(column='pred',  aggfunc=_percentile(15.865)),
-                   pred_p84=pd.NamedAgg(column='pred',  aggfunc=_percentile(84.135))).reset_index()
-    agg['pred_c68'] = (agg.pred_p84-agg.pred_p16)/2
-    agg['gen_target'] = [e.left+((e.right-e.left)/2) for e in agg.gen_target.values]
-    
-    fit_func.fit(agg.gen_target, agg[f'pred_{centre}'], sigma=agg[f'pred_{width}'])
+    centres,uncs,targs,p16,p84 = [],[],[],[],[]
+    for i in range(len(bins[:-1])): 
+        targs.append(bins[i]+((bins[i+1]-bins[i])/2))
+        centres.append(np.mean(bs_stats[f'bin_{i}_mean']) if centre == 'mean' else np.median(bs_stats[f'bin_{i}_median']))
+        p16.append(np.percentile(bs_stats[f'bin_{i}_{centre}'], 15.865))
+        p84.append(np.percentile(bs_stats[f'bin_{i}_{centre}'], 84.135))
+        uncs.append(np.std(bs_stats[f'bin_{i}_{centre}']))
+        
+    agg = pd.DataFrame(data={'gen_target':targs, f'pred_{centre}':centres, 'pred_std':uncs, 'pred_p16':p16, 'pred_p84':p84})    
+    fit_func.fit(agg.gen_target, agg[f'pred_{centre}'], sigma=agg['pred_std'])
     return agg
     

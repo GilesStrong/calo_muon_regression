@@ -151,7 +151,7 @@ def plotevent(event, arr, ax, usegrid=False, iscalo=True):
     scaled_emax = np.log(np.max(usearr[:,:,:,0])+1)
         
     norm = mpl.colors.Normalize(vmin=0, vmax=scaled_emax)
-    cmap = cm.copper
+    cmap = cm.viridis
     m = cm.ScalarMappable(norm=norm, cmap=cmap)
     alpha = 0.5
     if not iscalo:
