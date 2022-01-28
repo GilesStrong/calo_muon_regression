@@ -10,6 +10,5 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 1
-   
+
    muon_regression.experiment.exp_journal

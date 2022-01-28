@@ -10,8 +10,7 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 1
-   
+
    muon_regression.data_proc.data_import
    muon_regression.data_proc.detector
    muon_regression.data_proc.pre_proc

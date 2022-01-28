@@ -10,7 +10,6 @@ Submodules
 ----------
 
 .. toctree::
-   :maxdepth: 1
-   
+
    muon_regression.result_proc.binning
    muon_regression.result_proc.correction
