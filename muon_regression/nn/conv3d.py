@@ -9,10 +9,40 @@ from lumin.nn.models.initialisations import lookup_normal_init
 from lumin.nn.models.layers.activations import lookup_act
 from lumin.nn.models.layers.batchnorms import RunningBatchNorm3d
 from lumin.utils.misc import to_device, to_tensor
-from lumin.nn.models.blocks.conv_blocks import SEBlock3d
+from lumin.nn.models.blocks.conv_blocks import SEBlock1d
 
 
 __all__ = ['PreActMuonConv3dBlock']
+
+
+class SEBlock3d(SEBlock1d):
+    r'''
+    Copyright 2018 onwards Giles Strong
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+    Include fix from lumin=0.8.1
+
+    Squeeze-excitation block [Hu, Shen, Albanie, Sun, & Wu, 2017](https://arxiv.org/abs/1709.01507).
+    Incoming data is averaged per channel, fed through a single layer of width `n_in//r` and the chose activation, then a second layer of width `n_in` and a sigmoid activation.
+    Channels in the original data are then multiplied by the learned channe weights.
+    Arguments:
+        n_in: number of incoming channels
+        r: the reduction ratio for the channel compression
+        act: string representation of argument to pass to lookup_act
+        lookup_init: function taking choice of activation function, number of inputs, and number of outputs an returning a function to initialise layer weights.
+        lookup_act: function taking choice of activation function and returning an activation function layer
+    '''
+
+    def __init__(self, n_in:int, r:int, act:str='relu', lookup_init:Callable[[str,Optional[int],Optional[int]],Callable[[Tensor],None]]=lookup_normal_init,
+                 lookup_act:Callable[[str],Any]=lookup_act):
+        super().__init__(n_in=n_in, r=r)
+        self.n_in,self.r,self.act,self.lookup_init,self.lookup_act = n_in,r,act,lookup_init,lookup_act
+        self.layers = self._get_layers()
+        self.sz = [1,1,1]
+        self.pool = nn.AdaptiveAvgPool3d(self.sz)
 
 
 class PreActMuonConv3dBlock(nn.Module):

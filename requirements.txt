@@ -17,3 +17,4 @@ fastcore==1.3.5
 lumin==0.8.0
 typer==0.3.0
 uproot==3.11
+ipython
