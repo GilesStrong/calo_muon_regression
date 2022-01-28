@@ -2,9 +2,7 @@
 
 # High-Energy Muon Calorimeter Regression Study
 
-Public version of code used in "Calorimetric Measurement of Multi-TeV Muons via Deep Regression" by Jan Kieseler, Giles C. Strong, Filippo Chiandotto, Tommaso Dorigo, & Lukas Layer, (2021), [arXiv:2107.02119 [physics.ins-det]](https://arxiv.org/abs/2107.02119)
-
-**Warning: This repo is currently being populated with a public version of the research code-base. It is currently incomplete, and has not yet been fully tested. Please check back soon**
+Public version of code used in "Calorimetric Measurement of Multi-TeV Muons via Deep Regression" by Jan Kieseler, Giles C. Strong, Filippo Chiandotto, Tommaso Dorigo, & Lukas Layer, [The European Physical Journal C volume 82, Article number: 79 (2022)](https://link.springer.com/article/10.1140%2Fepjc%2Fs10052-022-09993-5)
 
 ## Installation
 
@@ -21,7 +19,7 @@ conda env create -f environment.yml
 
 This will create a new Conda environment called `muon-regression`, which can be activated using:
 ```
-conda activate muon-regression
+conda activate calo_muon_regression
 ```
 
 Alternatively:
@@ -31,6 +29,8 @@ pip install -r requirements.txt
 may be used to install the dependencies.
 
 Self-hosted documentation, installation guide, and user guide are available by opening `./docs/build/html/index.html` with a web-browser.
+
+For GPU use (which is highly recommended), please separately install a suitable version of PyTorch based on your drivers.
 
 ## Data
 

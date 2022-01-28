@@ -10,10 +10,16 @@ Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 1
-   
+
    muon_regression.data_proc
    muon_regression.experiment
    muon_regression.nn
    muon_regression.plotting
    muon_regression.result_proc
+
+Submodules
+----------
+
+.. toctree::
+
+   muon_regression.fqs

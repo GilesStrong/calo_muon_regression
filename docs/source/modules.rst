@@ -2,6 +2,6 @@ muon_regression
 ===============
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 4
 
    muon_regression

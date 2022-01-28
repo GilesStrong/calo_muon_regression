@@ -19,7 +19,7 @@ conda env create -f environment.yml
 
 This will create a new Conda environment called `muon-regression`, which can be activated using:
 ```
-conda activate muon-regression
+conda activate calo_muon_regression
 ```
 
 Alternatively:
