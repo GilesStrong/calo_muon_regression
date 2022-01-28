@@ -1,19 +1,21 @@
-name: muon-regression
+name: calo_muon_regression
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>=3.6.5
+  - python>=3.6.5,<3.8
+  - ipython
   - pip
+  - pip:
+    - torch==1.9.0
     - seaborn==0.9.0
     - matplotlib==3.2.2
     - pandas==0.25.0
-    - torch==1.9.0
     - fastprogress==0.1.21
-    - scipy==1.5.4
+    - scipy==1.2.0
     - numpy==1.21
-    - h5py==2.7.1
-    - scikit-learn==0.22.0
+    - h5py
+    - scikit-learn==0.22.2
     - statsmodels==0.9.0
     - sympy==1.1.1
     - pdpbox~=0.2.0
